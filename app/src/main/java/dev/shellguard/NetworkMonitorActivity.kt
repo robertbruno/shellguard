@@ -123,6 +123,13 @@ fun ConnectionRow(conn: NetworkMonitorService.ConnectionEvent) {
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
+                conn.dohProvider?.let { provider ->
+                    Text(
+                        "DoH detectado: $provider",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
             }
             Text(
                 formatTimestamp(conn.timestamp),

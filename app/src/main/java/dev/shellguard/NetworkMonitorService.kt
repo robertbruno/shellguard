@@ -71,6 +71,8 @@ class NetworkMonitorService : VpnService() {
         val packageName: String?,
         val appName: String?,
         val blocked: Boolean = false,
+        val isDoh: Boolean = false,
+        val dohProvider: String? = null,
     )
 
     private var vpnInterface: ParcelFileDescriptor? = null
@@ -180,6 +182,9 @@ class NetworkMonitorService : VpnService() {
         val protocolName = if (protocol == OsConstants.IPPROTO_TCP) "TCP" else "UDP"
         val (pkgName, appLabel) = resolveAppName(protocol, sourceIp, sourcePort, destIp, destPort)
 
+        // Detect DoH: TCP/UDP 443 to known DoH provider IPs
+        val dohProvider = if (destPort == 443) DohDetector.isDohIp(destIp) else null
+
         val event = ConnectionEvent(
             timestamp = System.currentTimeMillis(),
             sourceIp = sourceIp,
@@ -189,6 +194,9 @@ class NetworkMonitorService : VpnService() {
             protocol = protocolName,
             packageName = pkgName,
             appName = appLabel,
+            blocked = false,
+            isDoh = dohProvider != null,
+            dohProvider = dohProvider,
         )
 
         connectionLog.value = (connectionLog.value + event).takeLast(1000)
