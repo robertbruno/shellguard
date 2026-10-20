@@ -2,6 +2,10 @@
 
 Auditoria de privacidad y monitor de red para Android. Herramienta de codigo abierto enfocada en deteccion de rastreadores, atribucion de trafico por aplicacion y bloqueo DNS de dominios de terceros.
 
+## Licencia
+
+AGPLv3. Ver archivo LICENSE.
+
 ## Caracteristicas
 
 ### Auditoria de paquetes instalados
@@ -76,7 +80,3 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - DNS-over-HTTPS (DoH) no pasa por el filtro local
 - La lista de dominios bloqueados no es editable desde la interfaz
 - La atribucion por UID puede fallar en conexiones efimeras
-
-## Licencia
-
-Ver archivo LICENSE.
