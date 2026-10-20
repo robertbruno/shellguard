@@ -1,0 +1,19 @@
+# Build artifacts
+.gradle/
+**/build/
+build/
+*.apk
+*.aab
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+
+# Local config
+local.properties
+
+# Sub-repos
+shellguard/

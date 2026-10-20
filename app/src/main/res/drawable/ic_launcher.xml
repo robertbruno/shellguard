@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Simple shield -->
+    <path
+        android:fillColor="#00695C"
+        android:pathData="M24,2L4,10v12c0,12.4 8.6,22.4 20,24 11.4,-1.6 20,-11.6 20,-24V10L24,2z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,6L8,12v10c0,10.2 7,18.4 16,20 9,-1.6 16,-9.8 16,-20V12L24,6z"/>
+    <path
+        android:fillColor="#00695C"
+        android:pathData="M22,16h4v10h10v4H22V16z"/>
+</vector>
