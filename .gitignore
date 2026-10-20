@@ -16,4 +16,5 @@ build/
 local.properties
 
 # Sub-repos
-shellguard/
+/shellguard/
+.claude/

@@ -1,5 +1,6 @@
 package dev.shellguard
 
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -83,6 +84,29 @@ fun ShellGuardApp() {
                     enabled = scanProgress == null,
                 ) {
                     Text("Escanear trackers")
+                }
+
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(
+                        onClick = {
+                            context.startActivity(
+                                Intent(context, NetworkMonitorActivity::class.java)
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text("Monitor de red") }
+
+                    Button(
+                        onClick = {
+                            context.startActivity(
+                                Intent(context, BlocklistActivity::class.java)
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text("Bloqueos DNS") }
                 }
 
                 LazyColumn(Modifier.fillMaxSize()) {

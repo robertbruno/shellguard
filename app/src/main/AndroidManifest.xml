@@ -33,6 +33,11 @@
             android:exported="false"
             android:theme="@style/Theme.ShellGuard" />
 
+        <activity
+            android:name=".BlocklistActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ShellGuard" />
+
         <service
             android:name=".NetworkMonitorService"
             android:permission="android.permission.BIND_VPN_SERVICE"
