@@ -103,8 +103,11 @@ class NetworkMonitorService : VpnService() {
         val builder = Builder()
             .setSession("ShellGuard")
             .addAddress("10.0.0.2", 32)
+            .addAddress("fd00:1:fd00:1:fd00:1:fd00:1", 128)
             .addDnsServer("8.8.8.8")
+            .addDnsServer("2001:4860:4860::8888")
             .addRoute("0.0.0.0", 0)
+            .addRoute("::", 0)
             .setMtu(1500)
 
         vpnInterface = builder.establish()
@@ -144,11 +147,20 @@ class NetworkMonitorService : VpnService() {
     }
 
     private fun parsePacket(buf: ByteBuffer, output: FileOutputStream) {
-        if (buf.remaining() < 20) return
+        if (buf.remaining() < 1) return
 
         buf.position(0)
         val version = buf.get().toInt() shr 4
-        if (version != 4) return
+
+        when (version) {
+            4 -> parseIpv4Packet(buf, output)
+            6 -> parseIpv6Packet(buf, output)
+            else -> return
+        }
+    }
+
+    private fun parseIpv4Packet(buf: ByteBuffer, output: FileOutputStream) {
+        if (buf.remaining() < 20) return
 
         buf.position(0)
         val headerLength = (buf.get().toInt() and 0x0F) * 4
@@ -156,8 +168,8 @@ class NetworkMonitorService : VpnService() {
         val protocol = buf.get().toInt() and 0xFF
 
         buf.position(12)
-        val sourceIp = readIp(buf)
-        val destIp = readIp(buf)
+        val sourceIp = readIpv4(buf)
+        val destIp = readIpv4(buf)
 
         if (protocol != OsConstants.IPPROTO_TCP && protocol != OsConstants.IPPROTO_UDP) return
 
@@ -167,11 +179,10 @@ class NetworkMonitorService : VpnService() {
         val sourcePort = buf.short.toInt() and 0xFFFF
         val destPort = buf.short.toInt() and 0xFFFF
 
-        // Intercept DNS queries: UDP dest port 53
         if (protocol == OsConstants.IPPROTO_UDP && destPort == 53) {
             val dnsPayload = ByteArray(buf.remaining())
             buf.get(dnsPayload)
-            val response = handleDnsQuery(dnsPayload, sourceIp, sourcePort, destIp)
+            val response = handleDnsQuery(dnsPayload, sourceIp, sourcePort, destIp, 4)
             if (response != null) {
                 output.write(response)
                 output.flush()
@@ -179,11 +190,51 @@ class NetworkMonitorService : VpnService() {
             return
         }
 
+        logConnection(protocol, sourceIp, sourcePort, destIp, destPort)
+    }
+
+    private fun parseIpv6Packet(buf: ByteBuffer, output: FileOutputStream) {
+        if (buf.remaining() < 40) return
+
+        buf.position(0)
+        buf.get() // version + traffic class high
+        buf.get() // traffic class low + flow label high
+        buf.get() // flow label mid
+        buf.get() // flow label low
+        buf.short // payload length
+        val nextHeader = buf.get().toInt() and 0xFF // next header (protocol)
+        buf.get() // hop limit
+
+        val sourceIp = readIpv6(buf)
+        val destIp = readIpv6(buf)
+
+        if (nextHeader != OsConstants.IPPROTO_TCP && nextHeader != OsConstants.IPPROTO_UDP) return
+
+        if (buf.remaining() < 4) return
+
+        val sourcePort = buf.short.toInt() and 0xFFFF
+        val destPort = buf.short.toInt() and 0xFFFF
+
+        // DNS over IPv6 UDP port 53
+        if (nextHeader == OsConstants.IPPROTO_UDP && destPort == 53) {
+            val dnsPayload = ByteArray(buf.remaining())
+            buf.get(dnsPayload)
+            val response = handleDnsQuery(dnsPayload, sourceIp, sourcePort, destIp, 6)
+            if (response != null) {
+                output.write(response)
+                output.flush()
+            }
+            return
+        }
+
+        logConnection(nextHeader, sourceIp, sourcePort, destIp, destPort)
+    }
+
+    private fun logConnection(protocol: Int, sourceIp: String, sourcePort: Int, destIp: String, destPort: Int) {
         val protocolName = if (protocol == OsConstants.IPPROTO_TCP) "TCP" else "UDP"
         val (pkgName, appLabel) = resolveAppName(protocol, sourceIp, sourcePort, destIp, destPort)
 
-        // Detect DoH: TCP/UDP 443 to known DoH provider IPs
-        val dohProvider = if (destPort == 443) DohDetector.isDohIp(destIp) else null
+        val dohProvider = if (destPort == 443 || destPort == 853) DohDetector.isDohIp(destIp) else null
 
         val event = ConnectionEvent(
             timestamp = System.currentTimeMillis(),
@@ -202,7 +253,23 @@ class NetworkMonitorService : VpnService() {
         connectionLog.value = (connectionLog.value + event).takeLast(1000)
     }
 
-    private fun handleDnsQuery(query: ByteArray, clientIp: String, clientPort: Int, dnsServerIp: String): ByteArray? {
+    private fun readIpv4(buf: ByteBuffer): String {
+        return "${buf.get().toInt() and 0xFF}.${buf.get().toInt() and 0xFF}.${buf.get().toInt() and 0xFF}.${buf.get().toInt() and 0xFF}"
+    }
+
+    private fun readIpv6(buf: ByteBuffer): String {
+        val bytes = ByteArray(16)
+        buf.get(bytes)
+        val sb = StringBuilder()
+        for (i in bytes.indices step 2) {
+            if (i > 0) sb.append(":")
+            val value = ((bytes[i].toInt() and 0xFF) shl 8) or (bytes[i + 1].toInt() and 0xFF)
+            sb.append(value.toString(16))
+        }
+        return sb.toString()
+    }
+
+    private fun handleDnsQuery(query: ByteArray, clientIp: String, clientPort: Int, dnsServerIp: String, ipVersion: Int): ByteArray? {
         return try {
             val domain = extractDnsDomain(query) ?: return null
             val blocked = isBlockedDomain(domain)
@@ -226,7 +293,7 @@ class NetworkMonitorService : VpnService() {
 
             if (blocked) {
                 Log.i("ShellGuard", "DNS bloqueado: $domain ($appLabel)")
-                buildDnsResponse(query, dnsServerIp, clientIp, clientPort)
+                buildDnsResponse(query, dnsServerIp, clientIp, clientPort, ipVersion)
             } else {
                 null
             }
@@ -259,7 +326,7 @@ class NetworkMonitorService : VpnService() {
         return labels.joinToString(".")
     }
 
-    private fun buildDnsResponse(query: ByteArray, dnsServerIp: String, clientIp: String, clientPort: Int): ByteArray {
+    private fun buildDnsResponse(query: ByteArray, dnsServerIp: String, clientIp: String, clientPort: Int, ipVersion: Int): ByteArray {
         // Truncate query at end of question section
         var pos = 12
         while (pos < query.size) {
@@ -280,15 +347,32 @@ class NetworkMonitorService : VpnService() {
         val question = query.copyOfRange(12, pos)
         val response = header + question
 
-        // Response goes FROM dnsServerIp:53 TO clientIp:clientPort
-        return buildIpPacket(response, dnsServerIp, 53, clientIp, clientPort)
+        return buildIpPacket(response, dnsServerIp, 53, clientIp, clientPort, ipVersion)
     }
 
-    private fun buildIpPacket(payload: ByteArray, srcIp: String, srcPort: Int, destIp: String, destPort: Int): ByteArray {
+    private fun buildIpPacket(payload: ByteArray, srcIp: String, srcPort: Int, destIp: String, destPort: Int, ipVersion: Int): ByteArray {
+        val udpHeader = ByteArray(8)
+        udpHeader[0] = (srcPort shr 8).toByte()
+        udpHeader[1] = (srcPort and 0xFF).toByte()
+        udpHeader[2] = (destPort shr 8).toByte()
+        udpHeader[3] = (destPort and 0xFF).toByte()
+        val udpLen = 8 + payload.size
+        udpHeader[4] = (udpLen shr 8).toByte()
+        udpHeader[5] = (udpLen and 0xFF).toByte()
+        udpHeader[6] = 0; udpHeader[7] = 0
+
+        return if (ipVersion == 6) {
+            buildIpv6Packet(udpHeader + payload, srcIp, destIp)
+        } else {
+            buildIpv4Packet(udpHeader + payload, srcIp, destIp)
+        }
+    }
+
+    private fun buildIpv4Packet(payload: ByteArray, srcIp: String, destIp: String): ByteArray {
         val ipHeader = ByteArray(20)
         ipHeader[0] = 0x45 // IPv4, IHL=5
         ipHeader[1] = 0
-        val totalLen = 20 + 8 + payload.size
+        val totalLen = 20 + payload.size
         ipHeader[2] = (totalLen shr 8).toByte()
         ipHeader[3] = (totalLen and 0xFF).toByte()
         ipHeader[4] = 0; ipHeader[5] = 0
@@ -301,17 +385,37 @@ class NetworkMonitorService : VpnService() {
         srcParts.forEachIndexed { i, p -> ipHeader[12 + i] = p.toByte() }
         destParts.forEachIndexed { i, p -> ipHeader[16 + i] = p.toByte() }
 
-        val udpHeader = ByteArray(8)
-        udpHeader[0] = (srcPort shr 8).toByte()
-        udpHeader[1] = (srcPort and 0xFF).toByte()
-        udpHeader[2] = (destPort shr 8).toByte()
-        udpHeader[3] = (destPort and 0xFF).toByte()
-        val udpLen = 8 + payload.size
-        udpHeader[4] = (udpLen shr 8).toByte()
-        udpHeader[5] = (udpLen and 0xFF).toByte()
-        udpHeader[6] = 0; udpHeader[7] = 0
+        return ipHeader + payload
+    }
 
-        return ipHeader + udpHeader + payload
+    private fun buildIpv6Packet(payload: ByteArray, srcIp: String, destIp: String): ByteArray {
+        val ipHeader = ByteArray(40)
+
+        // Version (6) + traffic class (0) + flow label (0)
+        ipHeader[0] = (6 shl 4).toByte()
+        ipHeader[1] = 0
+        ipHeader[2] = 0
+        ipHeader[3] = 0
+
+        // Payload length
+        val payloadLen = payload.size
+        ipHeader[4] = (payloadLen shr 8).toByte()
+        ipHeader[5] = (payloadLen and 0xFF).toByte()
+
+        ipHeader[6] = 17 // Next header: UDP
+        ipHeader[7] = 64 // Hop limit
+
+        // Source address (16 bytes)
+        writeIpv6Address(ipHeader, 8, srcIp)
+        // Destination address (16 bytes)
+        writeIpv6Address(ipHeader, 24, destIp)
+
+        return ipHeader + payload
+    }
+
+    private fun writeIpv6Address(buffer: ByteArray, offset: Int, ip: String) {
+        val bytes = java.net.InetAddress.getByName(ip).address
+        System.arraycopy(bytes, 0, buffer, offset, 16)
     }
 
     private fun resolveAppName(
@@ -353,9 +457,7 @@ class NetworkMonitorService : VpnService() {
         }
     }
 
-    private fun readIp(buf: ByteBuffer): String {
-        return "${buf.get().toInt() and 0xFF}.${buf.get().toInt() and 0xFF}.${buf.get().toInt() and 0xFF}.${buf.get().toInt() and 0xFF}"
-    }
+
 
     private fun createNotification(): Notification {
         val channel = NotificationChannel(
