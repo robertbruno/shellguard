@@ -16,20 +16,28 @@ AGPLv3. Ver archivo LICENSE.
 ### Deteccion de rastreadores
 - Escaneo de archivos DEX dentro de cada APK instalado
 - Identificacion de SDKs de analisis, publicidad y geolocalizacion mediante firmas conocidas
-- Base de datos local de rastreadores (Google Ads, Firebase Analytics, Facebook Ads, AppsFlyer, Adjust, entre otros)
+- Base de datos local de 28 rastreadores (Google Ads, Firebase Analytics, Facebook Ads, AppsFlyer, Adjust, entre otros)
 - Funcionamiento completamente offline
 
 ### Monitor de red
-- Intercepcion de paquetes IP/TCP/UDP mediante VpnService local
+- Intercepcion de paquetes mediante VpnService local
+- Soporte IPv4 e IPv6
 - Atribucion de conexiones a aplicaciones mediante getConnectionOwnerUid (Android 10+)
-- Registro en tiempo real de conexiones con IP origen, destino, puertos y protocolo
+- Registro en tiempo real de conexiones con direccion origen, destino, puertos y protocolo
 - Buffer circular de 1000 eventos
 
 ### Bloqueo DNS
-- Intercepcion de consultas DNS (UDP/53)
+- Intercepcion de consultas DNS sobre UDP/53 (IPv4 e IPv6)
 - Lista de dominios de rastreadores bloqueados por defecto
 - Respuesta NXDOMAIN para dominios bloqueados
+- Interfaz para agregar y quitar dominios con validacion de formato
 - Registro de eventos DNS con indicador de bloqueo
+
+### Deteccion de DNS cifrado
+- Identificacion de trafico DNS-over-HTTPS (puerto 443) y DNS-over-TLS (puerto 853)
+- Rangos IPv4 e IPv6 de proveedores conocidos: Cloudflare, Google, Quad9, AdGuard, NextDNS
+- Coincidencia por CIDR con mascara de bits
+- Indicacion del proveedor en el registro de conexiones
 
 ## Requisitos
 
@@ -59,10 +67,11 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## Uso
 
 1. Abrir la aplicacion principal para ver la lista de paquetes instalados
-2. Pulsar "Escanear rastreadores" para analizar los APKs en busca de SDKs de terceros
-3. Acceder a "Monitor de red" desde el menu principal
+2. Pulsar "Escanear trackers" para analizar los APKs en busca de SDKs de terceros
+3. Pulsar "Monitor de red" para abrir el registro de conexiones
 4. Pulsar "Iniciar" y aceptar el permiso de VPN del sistema
-5. Las conexiones apareceran en la lista con la aplicacion responsable
+5. Las conexiones apareceran con la aplicacion responsable y, si corresponde, el proveedor de DNS cifrado detectado
+6. Pulsar "Bloqueos DNS" desde la pantalla principal para administrar la lista de dominios bloqueados
 
 ## Arquitectura
 
@@ -71,12 +80,15 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | `MainActivity` | Lista de aplicaciones con auditoria de permisos y rastreadores |
 | `DexScanner` | Lectura de APKs y busqueda de firmas en archivos DEX |
 | `TrackerDb` | Base de datos local de rastreadores conocidos |
-| `NetworkMonitorService` | Servicio VpnService, parser de paquetes, bloqueo DNS |
+| `NetworkMonitorService` | Servicio VpnService, parser de paquetes IPv4/IPv6, bloqueo DNS |
 | `NetworkMonitorActivity` | Interfaz de monitoreo en tiempo real |
+| `BlocklistActivity` | Administracion de dominios bloqueados |
+| `DomainValidator` | Validacion de formato de dominios |
+| `DohDetector` | Deteccion de proveedores de DNS cifrado por rango de direcciones |
 
 ## Limitaciones conocidas
 
-- Solo IPv4. El trafico IPv6 no es interceptado actualmente
-- DNS-over-HTTPS (DoH) no pasa por el filtro local
-- La lista de dominios bloqueados no es editable desde la interfaz
-- La atribucion por UID puede fallar en conexiones efimeras
+- La deteccion de DNS cifrado se basa en direcciones de proveedores conocidos. Cualquier trafico HTTPS hacia esas direcciones se marca como posible DNS cifrado, lo que puede producir falsos positivos
+- El trafico DNS cifrado se detecta pero no se bloquea
+- La atribucion por UID puede fallar en conexiones efimeras, devolviendo un valor no valido
+- La lista de dominios bloqueados no persiste entre reinicios de la aplicacion
