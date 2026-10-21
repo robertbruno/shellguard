@@ -1,4 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ShellGuard</string>
+
+    <!-- Package audit -->
+    <string name="audit_title">Auditoria de aplicaciones</string>
+    <string name="audit_search">Buscar aplicacion</string>
+    <string name="audit_scan_trackers">Escanear rastreadores</string>
+    <string name="audit_scanning">Analizando aplicaciones</string>
+    <string name="audit_system_app">Sistema</string>
+    <string name="audit_user_app">Usuario</string>
+    <string name="audit_permissions_count">%1$d permisos</string>
+    <string name="audit_trackers_found">%1$d rastreadores</string>
+    <string name="audit_no_trackers">Sin rastreadores</string>
+    <string name="audit_not_scanned">Sin analizar</string>
+    <string name="audit_help_title">Que muestra esta pantalla</string>
+    <string name="audit_help_body">Lista cada aplicacion instalada con los permisos que declara. Al pulsar "Escanear rastreadores" se leen los archivos DEX dentro de cada APK y se buscan firmas de SDKs de publicidad y analitica conocidos. El analisis es local: no se envia informacion a ningun servidor. Las aplicaciones de sistema se omiten del escaneo porque forman parte del sistema operativo y no se pueden desinstalar.</string>
+
+    <!-- Navigation -->
+    <string name="nav_network_monitor">Monitor de red</string>
+    <string name="nav_blocklist">Bloqueos DNS</string>
+
+    <!-- Network monitor -->
+    <string name="monitor_title">Monitor de red</string>
+    <string name="monitor_start">Iniciar</string>
+    <string name="monitor_stop">Detener</string>
+    <string name="monitor_empty">Sin conexiones registradas. Pulse "Iniciar" y acepte el permiso de VPN para comenzar a capturar.</string>
+    <string name="monitor_from">Desde %1$s:%2$d</string>
+    <string name="monitor_blocked">Bloqueado</string>
+    <string name="monitor_doh">DNS cifrado: %1$s</string>
+    <string name="monitor_unknown_app">Aplicacion no identificada</string>
+    <string name="monitor_help_title">Como leer el registro</string>
+    <string name="monitor_help_body">Cada fila es un paquete de red capturado por la VPN local. El protocolo y la direccion de destino indican hacia donde va el trafico; debajo aparece la aplicacion responsable cuando el sistema puede identificarla. La atribucion requiere Android 10 o superior y puede fallar en conexiones muy breves. La VPN es local: el trafico no sale del dispositivo hacia ningun servidor externo de ShellGuard.</string>
+    <string name="monitor_help_doh_title">Que es DNS cifrado</string>
+    <string name="monitor_help_doh_body">DNS-over-HTTPS (puerto 443) y DNS-over-TLS (puerto 853) cifran las consultas de nombres de dominio. Eso protege la privacidad frente a terceros, pero tambien impide que el filtro local vea que dominios se consultan, por lo que el bloqueo por dominio no se aplica a ese trafico. ShellGuard marca las conexiones hacia proveedores conocidos de DNS cifrado para que sepa cuando esta ocurriendo. Como la deteccion se basa en direcciones IP, cualquier otro trafico HTTPS hacia esas mismas direcciones aparecera marcado tambien.</string>
+
+    <!-- Blocklist -->
+    <string name="blocklist_title">Dominios bloqueados</string>
+    <string name="blocklist_domain_label">Dominio</string>
+    <string name="blocklist_add">Agregar</string>
+    <string name="blocklist_remove">Quitar</string>
+    <string name="blocklist_count">%1$d dominios bloqueados</string>
+    <string name="blocklist_error_format">Formato invalido</string>
+    <string name="blocklist_error_duplicate">Ya esta en la lista</string>
+    <string name="blocklist_help_title">Como funciona el bloqueo</string>
+    <string name="blocklist_help_body">Cuando una aplicacion consulta uno de estos dominios, ShellGuard responde que el dominio no existe (NXDOMAIN) en lugar de dejar que la consulta llegue al servidor DNS. El bloqueo cubre el dominio exacto y sus subdominios: bloquear "ads.example.com" tambien bloquea "track.ads.example.com". Solo aplica a consultas DNS sin cifrar; el trafico DNS cifrado no pasa por este filtro. La lista se pierde al cerrar la aplicacion.</string>
 </resources>

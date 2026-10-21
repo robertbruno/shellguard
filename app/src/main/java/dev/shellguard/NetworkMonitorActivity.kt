@@ -1,87 +1,169 @@
 package dev.shellguard
 
+import android.content.Intent
+import android.net.VpnService
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import android.content.Intent
-import kotlinx.coroutines.flow.collectLatest
+import dev.shellguard.ui.components.HelpCard
+import dev.shellguard.ui.components.StatusPill
+import dev.shellguard.ui.theme.MonoStyle
+import dev.shellguard.ui.theme.Motion
+import dev.shellguard.ui.theme.ShellGuardTheme
+import dev.shellguard.ui.theme.Spacing
+import dev.shellguard.ui.theme.statusColors
 
 class NetworkMonitorActivity : ComponentActivity() {
-    @androidx.compose.material3.ExperimentalMaterial3Api
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            NetworkMonitorScreen()
+            ShellGuardTheme {
+                NetworkMonitorScreen()
+            }
         }
     }
 }
 
-@androidx.compose.material3.ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NetworkMonitorScreen() {
     val context = LocalContext.current
     val isRunning by NetworkMonitorService.isRunning.collectAsState()
-    var connections by remember { mutableStateOf<List<NetworkMonitorService.ConnectionEvent>>(emptyList()) }
+    val connections by NetworkMonitorService.connectionLog.collectAsState()
     val listState = rememberLazyListState()
 
-    LaunchedEffect(Unit) {
-        NetworkMonitorService.connectionLog.collectLatest { events ->
-            connections = events
-            if (events.isNotEmpty()) {
-                listState.animateScrollToItem(events.size - 1)
-            }
+    // VpnService requires explicit user consent before establish() works.
+    val vpnPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            context.startForegroundService(
+                Intent(context, NetworkMonitorService::class.java).apply {
+                    action = NetworkMonitorService.ACTION_START
+                }
+            )
         }
     }
 
-    MaterialTheme {
-        Scaffold(
-            topBar = { CenterAlignedTopAppBar(title = { Text("Network Monitor") }) }
-        ) { padding ->
-            Column(Modifier.padding(padding).fillMaxSize()) {
-                Row(
-                    Modifier.fillMaxWidth().padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Button(
-                        onClick = {
-                            val intent = Intent(context, NetworkMonitorService::class.java).apply {
-                                action = NetworkMonitorService.ACTION_START
-                            }
-                            context.startForegroundService(intent)
-                        },
-                        enabled = !isRunning,
-                        modifier = Modifier.weight(1f),
-                    ) { Text("Iniciar") }
+    LaunchedEffect(connections.size) {
+        if (connections.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
+    }
 
-                    Button(
-                        onClick = {
-                            val intent = Intent(context, NetworkMonitorService::class.java).apply {
-                                action = NetworkMonitorService.ACTION_STOP
-                            }
-                            context.startService(intent)
-                        },
-                        enabled = isRunning,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        ),
-                    ) { Text("Detener") }
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.monitor_title)) },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+            )
+        }
+    ) { padding ->
+        Column(
+            Modifier
+                .padding(padding)
+                .fillMaxSize()
+        ) {
+            HelpCard(
+                title = stringResource(R.string.monitor_help_title),
+                body = stringResource(R.string.monitor_help_body),
+            )
+            HelpCard(
+                title = stringResource(R.string.monitor_help_doh_title),
+                body = stringResource(R.string.monitor_help_doh_body),
+            )
+
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(Spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                Button(
+                    onClick = {
+                        val consent = VpnService.prepare(context)
+                        if (consent != null) {
+                            vpnPermissionLauncher.launch(consent)
+                        } else {
+                            context.startForegroundService(
+                                Intent(context, NetworkMonitorService::class.java).apply {
+                                    action = NetworkMonitorService.ACTION_START
+                                }
+                            )
+                        }
+                    },
+                    enabled = !isRunning,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(Spacing.xs))
+                    Text(stringResource(R.string.monitor_start))
                 }
 
+                Button(
+                    onClick = {
+                        context.startService(
+                            Intent(context, NetworkMonitorService::class.java).apply {
+                                action = NetworkMonitorService.ACTION_STOP
+                            }
+                        )
+                    },
+                    enabled = isRunning,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
+                ) {
+                    Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(Spacing.xs))
+                    Text(stringResource(R.string.monitor_stop))
+                }
+            }
+
+            if (connections.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        stringResource(R.string.monitor_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(Spacing.xl),
+                    )
+                }
+            } else {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = Spacing.lg),
                 ) {
-                    items(connections.reversed()) { conn ->
+                    items(connections.asReversed()) { conn ->
                         ConnectionRow(conn)
                     }
                 }
@@ -92,49 +174,75 @@ fun NetworkMonitorScreen() {
 
 @Composable
 fun ConnectionRow(conn: NetworkMonitorService.ConnectionEvent) {
-    Card(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp)) {
-        Row(
-            Modifier.padding(12.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+    val status = statusColors
+
+    AnimatedVisibility(
+        visible = true,
+        enter = slideInVertically(tween(Motion.FAST)) + fadeIn(tween(Motion.FAST)),
+        exit = fadeOut(tween(Motion.FAST)),
+    ) {
+        Card(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.sm, vertical = Spacing.xs)
         ) {
-            Column {
-                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Column(Modifier.padding(Spacing.md)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        "${conn.protocol} ${conn.destIp}:${conn.destPort}",
-                        style = MaterialTheme.typography.bodyMedium,
+                        "${conn.protocol}  ${conn.destIp}:${conn.destPort}",
+                        style = MonoStyle,
+                        modifier = Modifier.weight(1f),
                     )
-                    if (conn.blocked) {
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            "BLOQUEADO",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
+                    Text(
+                        formatTimestamp(conn.timestamp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                Text(
+                    stringResource(R.string.monitor_from, conn.sourceIp, conn.sourcePort),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Text(
+                    conn.appName ?: stringResource(R.string.monitor_unknown_app),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (conn.appName != null) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
+
+                if (conn.blocked || conn.dohProvider != null) {
+                    Row(
+                        Modifier.padding(top = Spacing.sm),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    ) {
+                        if (conn.blocked) {
+                            StatusPill(
+                                text = stringResource(R.string.monitor_blocked),
+                                color = status.critical,
+                                icon = Icons.Default.Block,
+                            )
+                        }
+                        conn.dohProvider?.let { provider ->
+                            StatusPill(
+                                text = stringResource(R.string.monitor_doh, provider),
+                                color = status.warning,
+                                icon = Icons.Default.Lock,
+                            )
+                        }
                     }
                 }
-                Text(
-                    "Desde ${conn.sourceIp}:${conn.sourcePort}",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                conn.appName?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                conn.dohProvider?.let { provider ->
-                    Text(
-                        "DoH detectado: $provider",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary,
-                    )
-                }
             }
-            Text(
-                formatTimestamp(conn.timestamp),
-                style = MaterialTheme.typography.labelSmall,
-            )
         }
     }
 }
