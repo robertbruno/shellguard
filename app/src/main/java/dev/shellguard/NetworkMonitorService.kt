@@ -30,35 +30,8 @@ class NetworkMonitorService : VpnService() {
         val isRunning = MutableStateFlow(false)
         val connectionLog = MutableStateFlow<List<ConnectionEvent>>(emptyList())
 
-        // Domains to block. ponytail: add when user-managed blocklist UI exists
-        val blockedDomains = MutableStateFlow<Set<String>>(
-            setOf(
-                "doubleclick.net",
-                "googleadservices.com",
-                "googlesyndication.com",
-                "facebook.com",
-                "graph.facebook.com",
-                "appsflyer.com",
-                "adjust.com",
-                "mixpanel.com",
-                "flurry.com",
-                "applovin.com",
-                "unityads.unity3d.com",
-                "chartboost.com",
-                "ironsrc.com",
-                "adcolony.com",
-                "inmobi.com",
-                "startapp.com",
-                "yandex.ru",
-                "appboy.com",
-                "onesignal.com",
-                "kochava.com",
-                "tapjoy.com",
-                "vungle.com",
-                "bytedance.com",
-                "amazon-adsystem.com",
-            )
-        )
+        /** Blocked domains, persisted by [BlocklistStore]. */
+        val blockedDomains get() = BlocklistStore.domains
     }
 
     data class ConnectionEvent(
@@ -84,6 +57,9 @@ class NetworkMonitorService : VpnService() {
         super.onCreate()
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         packageManager = applicationContext.packageManager
+        // The service can start without any activity having run, so the
+        // blocklist must be loaded here too.
+        BlocklistStore.init(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

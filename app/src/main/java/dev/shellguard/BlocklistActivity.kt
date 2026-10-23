@@ -13,12 +13,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.shellguard.ui.components.HelpCard
 import dev.shellguard.ui.theme.MonoStyle
@@ -29,6 +31,7 @@ import dev.shellguard.ui.theme.Spacing
 class BlocklistActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        BlocklistStore.init(this)
         setContent {
             ShellGuardTheme {
                 BlocklistScreen()
@@ -40,7 +43,7 @@ class BlocklistActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BlocklistScreen() {
-    val blocked by NetworkMonitorService.blockedDomains.collectAsState()
+    val blocked by BlocklistStore.domains.collectAsState()
     var newDomain by remember { mutableStateOf("") }
     var errorRes by remember { mutableStateOf<Int?>(null) }
 
@@ -50,7 +53,7 @@ fun BlocklistScreen() {
             !isValidDomain(domain) -> R.string.blocklist_error_format
             blocked.contains(domain) -> R.string.blocklist_error_duplicate
             else -> {
-                NetworkMonitorService.blockedDomains.value = blocked + domain
+                BlocklistStore.add(domain)
                 newDomain = ""
                 null
             }
@@ -122,24 +125,56 @@ fun BlocklistScreen() {
                 }
             }
 
-            Text(
-                stringResource(R.string.blocklist_count, blocked.size),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xs),
-            )
-
-            LazyColumn(
-                Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = Spacing.lg),
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = Spacing.lg, end = Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                items(blocked.sorted(), key = { it }) { domain ->
-                    BlockedDomainRow(
-                        domain = domain,
-                        onRemove = {
-                            NetworkMonitorService.blockedDomains.value = blocked - domain
-                        },
+                Text(
+                    stringResource(R.string.blocklist_count, blocked.size),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                AnimatedVisibility(
+                    visible = blocked != BlocklistStore.DEFAULT_DOMAINS,
+                    enter = fadeIn(tween(Motion.FAST)),
+                    exit = fadeOut(tween(Motion.FAST)),
+                ) {
+                    TextButton(onClick = { BlocklistStore.resetToDefaults() }) {
+                        Icon(
+                            Icons.Default.Restore,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(Spacing.xs))
+                        Text(stringResource(R.string.blocklist_reset))
+                    }
+                }
+            }
+
+            if (blocked.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        stringResource(R.string.blocklist_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(Spacing.xl),
                     )
+                }
+            } else {
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = Spacing.lg),
+                ) {
+                    items(blocked.sorted(), key = { it }) { domain ->
+                        BlockedDomainRow(
+                            domain = domain,
+                            onRemove = { BlocklistStore.remove(domain) },
+                        )
+                    }
                 }
             }
         }

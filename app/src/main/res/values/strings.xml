@@ -39,9 +39,11 @@
     <string name="blocklist_domain_label">Dominio</string>
     <string name="blocklist_add">Agregar</string>
     <string name="blocklist_remove">Quitar</string>
+    <string name="blocklist_reset">Restaurar lista inicial</string>
+    <string name="blocklist_empty">La lista esta vacia. No se bloqueara ningun dominio.</string>
     <string name="blocklist_count">%1$d dominios bloqueados</string>
     <string name="blocklist_error_format">Formato invalido</string>
     <string name="blocklist_error_duplicate">Ya esta en la lista</string>
     <string name="blocklist_help_title">Como funciona el bloqueo</string>
-    <string name="blocklist_help_body">Cuando una aplicacion consulta uno de estos dominios, ShellGuard responde que el dominio no existe (NXDOMAIN) en lugar de dejar que la consulta llegue al servidor DNS. El bloqueo cubre el dominio exacto y sus subdominios: bloquear "ads.example.com" tambien bloquea "track.ads.example.com". Solo aplica a consultas DNS sin cifrar; el trafico DNS cifrado no pasa por este filtro. La lista se pierde al cerrar la aplicacion.</string>
+    <string name="blocklist_help_body">Cuando una aplicacion consulta uno de estos dominios, ShellGuard responde que el dominio no existe (NXDOMAIN) en lugar de dejar que la consulta llegue al servidor DNS. El bloqueo cubre el dominio exacto y sus subdominios: bloquear "ads.example.com" tambien bloquea "track.ads.example.com". Solo aplica a consultas DNS sin cifrar; el trafico DNS cifrado no pasa por este filtro. La lista se guarda en el dispositivo y se conserva al cerrar la aplicacion.</string>
 </resources>
