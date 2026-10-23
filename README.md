@@ -33,6 +33,12 @@ AGPLv3. Ver archivo LICENSE.
 - Interfaz para agregar y quitar dominios con validacion de formato
 - Registro de eventos DNS con indicador de bloqueo
 
+### Recuperacion de archivos en papelera
+- Listado de archivos multimedia que el sistema mantiene en papelera (Android 11+)
+- Restauracion a la ubicacion original mediante confirmacion del sistema
+- Indicacion de los dias restantes antes de la eliminacion definitiva
+- No aplica recuperacion a bajo nivel: el cifrado por archivo de Android descarta la clave al borrar, por lo que los bloques recuperados no se pueden descifrar
+
 ### Deteccion de DNS cifrado
 - Identificacion de trafico DNS-over-HTTPS (puerto 443) y DNS-over-TLS (puerto 853)
 - Rangos IPv4 e IPv6 de proveedores conocidos: Cloudflare, Google, Quad9, AdGuard, NextDNS
@@ -85,10 +91,13 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | `BlocklistActivity` | Administracion de dominios bloqueados |
 | `DomainValidator` | Validacion de formato de dominios |
 | `DohDetector` | Deteccion de proveedores de DNS cifrado por rango de direcciones |
+| `BlocklistStore` | Persistencia de la lista de dominios bloqueados |
+| `RecoveryStore` | Consulta y restauracion de archivos en papelera del sistema |
+| `RecoveryActivity` | Interfaz de recuperacion de archivos |
 
 ## Limitaciones conocidas
 
 - La deteccion de DNS cifrado se basa en direcciones de proveedores conocidos. Cualquier trafico HTTPS hacia esas direcciones se marca como posible DNS cifrado, lo que puede producir falsos positivos
 - El trafico DNS cifrado se detecta pero no se bloquea
 - La atribucion por UID puede fallar en conexiones efimeras, devolviendo un valor no valido
-- La lista de dominios bloqueados no persiste entre reinicios de la aplicacion
+- La recuperacion de archivos se limita a lo que el sistema mantiene en papelera: archivos multimedia borrados en los ultimos 30 dias a traves del indice de medios. No recupera archivos cuyo plazo vencio, ni documentos del almacenamiento privado de otras aplicaciones

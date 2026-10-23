@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Lan
@@ -167,6 +168,19 @@ fun ShellGuardApp() {
                     Spacer(Modifier.width(Spacing.xs))
                     Text(stringResource(R.string.nav_blocklist))
                 }
+            }
+
+            OutlinedButton(
+                onClick = {
+                    context.startActivity(Intent(context, RecoveryActivity::class.java))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.sm),
+            ) {
+                Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(Spacing.xs))
+                Text(stringResource(R.string.nav_recovery))
             }
 
             val visible = apps.filter {

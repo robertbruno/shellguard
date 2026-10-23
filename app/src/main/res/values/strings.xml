@@ -34,6 +34,21 @@
     <string name="monitor_help_doh_title">Que es DNS cifrado</string>
     <string name="monitor_help_doh_body">DNS-over-HTTPS (puerto 443) y DNS-over-TLS (puerto 853) cifran las consultas de nombres de dominio. Eso protege la privacidad frente a terceros, pero tambien impide que el filtro local vea que dominios se consultan, por lo que el bloqueo por dominio no se aplica a ese trafico. ShellGuard marca las conexiones hacia proveedores conocidos de DNS cifrado para que sepa cuando esta ocurriendo. Como la deteccion se basa en direcciones IP, cualquier otro trafico HTTPS hacia esas mismas direcciones aparecera marcado tambien.</string>
 
+    <!-- Recovery -->
+    <string name="nav_recovery">Recuperar archivos</string>
+    <string name="recovery_title">Archivos en papelera</string>
+    <string name="recovery_restore">Restaurar (%1$d)</string>
+    <string name="recovery_empty">No hay archivos en la papelera del sistema.</string>
+    <string name="recovery_unsupported">Esta funcion requiere Android 11 o superior. En versiones anteriores el sistema no mantiene papelera de archivos multimedia.</string>
+    <string name="recovery_permission_rationale">Para listar los archivos en papelera se necesita permiso de lectura de medios. ShellGuard solo lee el indice del sistema; no copia ni envia el contenido de los archivos.</string>
+    <string name="recovery_grant_permission">Conceder permiso</string>
+    <string name="recovery_expires_in">Se elimina en %1$d dias</string>
+    <string name="recovery_expires_today">Se elimina hoy</string>
+    <string name="recovery_help_title">Que se puede recuperar</string>
+    <string name="recovery_help_body">Android mantiene durante 30 dias los archivos multimedia que una aplicacion borra a traves del sistema de medios. Durante ese plazo el archivo sigue existiendo y puede restaurarse a su ubicacion original. Seleccione los archivos y pulse Restaurar; el sistema pedira confirmacion porque los archivos pertenecen a las aplicaciones que los crearon.</string>
+    <string name="recovery_help_limits_title">Que no se puede recuperar</string>
+    <string name="recovery_help_limits_body">Un archivo cuyo plazo de 30 dias ya vencio no aparece en esta lista: el sistema lo elimino del indice. Tampoco aparecen los archivos que se borraron sin pasar por el sistema de medios, ni los documentos del almacenamiento privado de cada aplicacion. La recuperacion a bajo nivel que usan herramientas como testdisk no funciona en el almacenamiento interno de Android: el cifrado por archivo descarta la clave al borrar, de modo que los bloques recuperados no se pueden descifrar. Ese tipo de analisis solo tiene sentido en tarjetas de memoria sin cifrar y requiere acceso de superusuario.</string>
+
     <!-- Blocklist -->
     <string name="blocklist_title">Dominios bloqueados</string>
     <string name="blocklist_domain_label">Dominio</string>
